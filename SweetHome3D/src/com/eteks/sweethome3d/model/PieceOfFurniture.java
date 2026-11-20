@@ -58,6 +58,16 @@ public interface PieceOfFurniture {
   public abstract float getWidth();
 
   /**
+   * Returns the volume of this piece of furniture, computed as
+   * <code>width * depth * height</code>.
+   * This default implementation lets existing implementations of this interface
+   * get the volume without having to implement it.
+   */
+  public default float getVolume() {
+    return getWidth() * getDepth() * getHeight();
+  }
+
+  /**
    * Returns the elevation of this piece of furniture.
    */
   public abstract float getElevation();
