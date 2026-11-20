@@ -125,6 +125,8 @@ import com.eteks.sweethome3d.viewcontroller.View;
 public class FurnitureTable extends JTable implements View, Printable {
   private static final String EXPANDED_ROWS_VISUAL_PROPERTY = "com.eteks.sweethome3d.SweetHome3D.ExpandedGroups";
 
+  private final Home                      home;
+  private final FurnitureTableColumnModel furnitureColumnModel;
   private UserPreferences        preferences;
   private ListSelectionListener  tableSelectionListener;
   private boolean                selectionByUser;
@@ -147,6 +149,7 @@ public class FurnitureTable extends JTable implements View, Printable {
    */
   public FurnitureTable(Home home, UserPreferences preferences, 
                        FurnitureController controller) {
+    this.home = home;
     this.preferences = preferences;
     float resolutionScale = SwingTools.getResolutionScale();
     if (resolutionScale != 1) {
@@ -154,7 +157,8 @@ public class FurnitureTable extends JTable implements View, Printable {
       setRowHeight(Math.round(getRowHeight() * resolutionScale));
     }
     setModel(new FurnitureTreeTableModel(home));
-    setColumnModel(new FurnitureTableColumnModel(home, preferences));
+    this.furnitureColumnModel = new FurnitureTableColumnModel(home, preferences);
+    setColumnModel(this.furnitureColumnModel);
     updateTableColumnsWidth(0);
     updateExpandedRows(home);
     updateTableSelectedFurniture(home);
@@ -725,6 +729,8 @@ public class FurnitureTable extends JTable implements View, Printable {
 
   /**
    * Prints this component to make it fill <code>pageFormat</code> imageable size.
+   * If home contains levels, a Level column is added to printed columns when it isn't displayed,
+   * without changing the columns displayed by this table.
    */
   public int print(Graphics g, PageFormat pageFormat, int pageIndex) throws PrinterException {
     // Create a printable column model from the column model of this table 
@@ -750,8 +756,20 @@ public class FurnitureTable extends JTable implements View, Printable {
           return headerRendererLabel;
         }
       };
+    // Print displayed columns, followed by Level column for homes with levels
+    List<TableColumn> printedColumns = new ArrayList<TableColumn>();
+    boolean levelColumnPrinted = false;
     for (int columnIndex = 0, n = columnModel.getColumnCount(); columnIndex < n; columnIndex++) {
-      final TableColumn tableColumn = columnModel.getColumn(columnIndex);
+      TableColumn tableColumn = columnModel.getColumn(columnIndex);
+      printedColumns.add(tableColumn);
+      levelColumnPrinted |= HomePieceOfFurniture.SortableProperty.LEVEL.equals(tableColumn.getIdentifier());
+    }
+    if (!levelColumnPrinted
+        && !this.home.getLevels().isEmpty()) {
+      printedColumns.add(this.furnitureColumnModel.getAvailableColumn(
+          HomePieceOfFurniture.SortableProperty.LEVEL));
+    }
+    for (final TableColumn tableColumn : printedColumns) {
       // Create a printable column from existing table column
       TableColumn printableColumn = new TableColumn();
       printableColumn.setIdentifier(tableColumn.getIdentifier());
@@ -1015,6 +1033,13 @@ public class FurnitureTable extends JTable implements View, Printable {
       addHomeListener(home);
       addLanguageListener(preferences);
       updateModelColumns(home.getFurnitureVisibleProperties());
+    }
+
+    /**
+     * Returns the column matching the given <code>property</code>, displayed or not.
+     */
+    public TableColumn getAvailableColumn(HomePieceOfFurniture.SortableProperty property) {
+      return this.availableColumns.get(property);
     }
 
     /**
